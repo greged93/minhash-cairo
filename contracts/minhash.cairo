@@ -7,13 +7,13 @@ from starkware.cairo.common.math_cmp import is_le
 
 from contracts.hasher import get_a, get_b, HASH_LENGTH, C
 
-func minhash{range_check_ptr}(input_len: felt, input: felt*) -> felt* {
+func minhash{range_check_ptr}(input_len: felt, input: felt*) -> (hash: felt*) {
     alloc_locals;
     tempvar a = get_a();
     tempvar b = get_b();
     let (local hash) = alloc();
     loop_hash(input_len=input_len, input=input, hash_len=0, hash=hash, a=a, b=b);
-    return hash;
+    return (hash=hash);
 }
 
 func loop_hash{range_check_ptr}(
