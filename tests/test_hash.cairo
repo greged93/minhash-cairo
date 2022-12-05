@@ -6,7 +6,17 @@ from contracts.minhash import hash_function, minhash
 from contracts.hasher import get_a, get_b, C, HASH_LENGTH
 
 @external
-func setup{range_check_ptr}() {
+func __setup__{range_check_ptr}() {
+    %{
+        import importlib  
+        utils = importlib.import_module("tests.utils")
+        context.import_json = utils.import_json
+        context.mapping_instructions = utils.mapping_instructions
+        context.mapping_mechs = utils.mapping_mechs
+        context.mapping_operators = utils.mapping_operators
+        context.Grid = utils.Grid
+        context.Operator = utils.Operator
+    %}
     return ();
 }
 
@@ -55,10 +65,50 @@ func test_minhash{range_check_ptr}() {
             hash_function = lambda x: (x*a+b)%ids.C
             minhash.append(min(map(hash_function, input_data)))
     %}
-    let minhash_value = minhash(input_len=test_len, input=input);
+    let (minhash_value) = minhash(input_len=test_len, input=input);
     %{
         for i in range(ids.HASH_LENGTH):
             assert minhash[i] == memory[ids.minhash_value + i], f'minhash error, expected {minhash[i]}, got {memory[ids.minhash_value + i]}'
+    %}
+    return ();
+}
+
+@external
+func test_minhash_different_solutions{range_check_ptr}() {
+    alloc_locals;
+    let (local set_1: felt*) = alloc();
+    let (local set_2: felt*) = alloc();
+
+    local len_1;
+    local len_2;
+    %{
+        (mechs, instructions, inputs, outputs) = context.import_json("./tests/data/solution_1.json")
+        i = context.mapping_instructions(instructions)
+        g = context.mapping_mechs([context.Grid(x, y) for (_, _, (x, y)) in mechs])
+        inputs = context.mapping_operators([context.Operator(x, y, t) for (x, y, t) in inputs])
+        ouputs = context.mapping_operators([context.Operator(x, y, t) for (x, y, t) in outputs])
+        set_1 = i + g + inputs + ouputs
+        segments.write_arg(ids.set_1, set_1)
+        ids.len_1 = len(set_1)
+
+        (mechs, instructions, inputs, outputs) = context.import_json("./tests/data/solution_2.json")
+        i = context.mapping_instructions(instructions)
+        g = context.mapping_mechs([context.Grid(x, y) for (_, _, (x, y)) in mechs])
+        inputs = context.mapping_operators([context.Operator(x, y, t) for (x, y, t) in inputs])
+        ouputs = context.mapping_operators([context.Operator(x, y, t) for (x, y, t) in outputs])
+        set_2 = i + g + inputs + ouputs
+        segments.write_arg(ids.set_2, set_2)
+        ids.len_2 = len(set_2)
+    %}
+
+    let (local minhash_value_1) = minhash(input_len=len_1, input=set_1);
+    let (local minhash_value_2) = minhash(input_len=len_2, input=set_2);
+
+    %{
+        diff = 0
+        for i in range(ids.HASH_LENGTH):
+            if memory[ids.minhash_value_1 +i] != memory[ids.minhash_value_2 +i]: diff += 1
+        assert 15 == diff, f'hash difference error, expected 15, got {diff}'
     %}
     return ();
 }
