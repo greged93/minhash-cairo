@@ -1,6 +1,10 @@
 import json
 from dataclasses import dataclass
 from collections import defaultdict
+import logging
+
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(5)
 
 MECH_STATUS = {
     "open": 0,
@@ -184,13 +188,18 @@ def test_mapping_operators():
     ]
 
 
-def test_general():
-    (mechs_1, instructions_1, inputs_1, outputs_1) = import_json(
-        "./tests/data/solution_1.json"
-    )
-    i = mapping_instructions(instructions_1)
-    g = mapping_mechs([Grid(x, y) for (_, _, (x, y)) in mechs_1])
-    inputs = mapping_operators([Operator(x, y, t) for (x, y, t) in inputs_1])
-    ouputs = mapping_operators([Operator(x, y, t) for (x, y, t) in outputs_1])
-    set_1 = i + g + inputs + ouputs
-    print(set_1)
+def test_compare_hashes():
+    # Notes:
+    import numpy as np
+
+    solutions = [1, 4, 5, 11, 12, 13, 14, 15, 17, 18]
+    hashes = np.zeros((10, 20))
+    for (i, index) in enumerate(solutions):
+        with open(f"./tests/data/hashed/solution_{index}.json", "r") as file:
+            hashes[i] = np.array(json.load(file))
+    differences = np.zeros((10, 10, 20))
+    for (i, h1) in enumerate(hashes):
+        for (j, h2) in enumerate(hashes):
+            differences[i, j] = np.subtract(h1, h2)
+    null = np.sum(differences == 0, axis=2)
+    LOGGER.info(f"\n {null}")
